@@ -19,13 +19,13 @@ help:
 	@printf "  make proxy [PROXY_PORT=<port>]             Start optional FastAPI proxy\n\n"
 	@printf "Defaults: MODEL=%s PORT=%s\n" "$(MODEL)" "$(PORT)"
 
-setup:
+setup-env-exmaple:
 	@MODEL="$(MODEL)" PORT="$(PORT)" scripts/setup_env.sh
 
 setup-model:
 	@MODEL="$(MODEL)" scripts/setup_model.sh
 
-run:
+run-model:
 	@MODEL="$(MODEL)" PORT="$(PORT)" scripts/run_model.sh
 
 setup-run:
@@ -40,5 +40,19 @@ stop:
 clean:
 	@scripts/cleanup.sh full
 
-proxy:
-	@set -a; [[ ! -f .env ]] || source .env; set +a; uvicorn api.proxy:app --host 0.0.0.0 --port "$${PROXY_PORT:-$(PROXY_PORT)}"
+run-proxy:
+	@VENV_DIR=".venv"; \
+	if [[ ! -x "$${VENV_DIR}/bin/python" ]]; then \
+		echo "Creating virtualenv at $${VENV_DIR}..."; \
+		python3 -m venv "$${VENV_DIR}"; \
+	fi; \
+	VENV_PY="$${VENV_DIR}/bin/python"; \
+	if ! "$${VENV_PY}" -m uvicorn --version >/dev/null 2>&1; then \
+		echo "uvicorn is not installed in $${VENV_DIR}. Installing dependencies..."; \
+		if [[ -f requirements.txt ]]; then \
+			"$${VENV_PY}" -m pip install --upgrade pip && "$${VENV_PY}" -m pip install -r requirements.txt; \
+		else \
+			"$${VENV_PY}" -m pip install --upgrade pip && "$${VENV_PY}" -m pip install uvicorn fastapi httpx; \
+		fi; \
+	fi; \
+	set -a; [[ ! -f .env ]] || source .env; set +a; "$${VENV_PY}" -m uvicorn api.proxy:app --host 0.0.0.0 --port "$${PROXY_PORT:-$(PROXY_PORT)}"
